@@ -237,14 +237,14 @@ void* display_subDocs()
 
 void register_sub_docs(blobRegInfo *bInfo,int NumOfSubdocs, getVersion getv , setVersion setv )
 {
-	WbInfo(("Inside FUNC %s LINE %d\n",__FUNCTION__,__LINE__));
+	WbInfo(("Inside FUNC %s LINE %d\n",__FUNCTION__));
 
 	gNumOfSubdocs=NumOfSubdocs;
 
 	blobData= bInfo ;
 
 
-	memset(&queueData, 0, sizeof(queueData));
+	memset(&queueData, 0, 10*sizeof(queueData));
 
 
 	queueData.front = -1;
