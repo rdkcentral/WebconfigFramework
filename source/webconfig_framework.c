@@ -27,7 +27,6 @@
 
 char mqEventName[64] = {0};
 
-
 char process_name[64]={0};
 
 int gNumOfSubdocs = 0;
