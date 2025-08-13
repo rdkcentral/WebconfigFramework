@@ -46,11 +46,8 @@ int isWebCfgRbusEnabled()
 	pthread_mutex_lock(&webcfg_rbus_enable);
 	if ( gRbusEnabled == 0 )
 	{
-		if(RBUS_ENABLED == rbus_checkStatus()) 
-		{
-			rbusInit();
-			gRbusEnabled = 1 ;
-		}   
+		rbusInit();
+		gRbusEnabled = 1 ;
 	}
     WbInfo(("%s: rbus enabled is %d \n", __FUNCTION__, gRbusEnabled));
 	pthread_mutex_unlock(&webcfg_rbus_enable);
@@ -87,10 +84,7 @@ void* subscribeSubdocForceReset(void* arg) {
 		}
 		WbInfo(("%s: job done\n", __FUNCTION__));
 	}
-	else {
-		WbError(("RBUS disabled. Unable to subscribe to event %s\n", WEBCFG_SUBDOC_FORCE_RESET_EVENT));
 
-	}
 	return arg;
 }
 
@@ -357,29 +351,6 @@ void eventRegisterSlave()
       		pthread_t bcast_regtid;
       		pthread_create(&bcast_regtid, NULL, event_subscribe_bcast,NULL);
   	}
-  	else
-  	{
-
-        	#if defined(CCSP_SUPPORT_ENABLED)
-            int ret = 0;
-          	CcspBaseIf_SetCallback2(bus_handle, BROADCASTSIGNAL_NAME,
-                     	multiCompBroadCastSignal_callbk, NULL);
-
-          	ret = CcspBaseIf_Register_Event(bus_handle, NULL, BROADCASTSIGNAL_NAME);
-              	if (ret != CCSP_Message_Bus_OK) {
-               	WbError(("multiCompBroadCastSignal reg unsuccessfull\n"));
-             	} 
-          	else 
-          	{
-                 	WbInfo(("multiCompBroadCastSignal Registration with CCSP Bus successful\n"));
-          	}
-              	CcspBaseIf_SetCallback2(bus_handle, SLAVE_COMP_SIGNAL_NAME,
-                	multiCompSlaveProcessSignal_callbk, NULL);
-        	#else
-              	WbError(("%s : CCSP_SUPPORT_NOT_ENABLED\n",__FUNCTION__ ));
-        	#endif
-  	}
-
 }
 
 /*************************************************************************************************************************************
@@ -411,17 +382,6 @@ void eventRegisterMaster()
           	{
               		WbError(("Failed to register multiCompBroadCastSignal data elements with rbus. Error code : %d\n", ret));
           	}   
-
-  	}
-  	else
-  	{
-        	#if defined(CCSP_SUPPORT_ENABLED)
-
-          	CcspBaseIf_SetCallback2(bus_handle, MASTER_COMP_SIGNAL_NAME,
-                	multiCompMasterProcessSignal_callbk, NULL);
-        	#else
-              	WbError(("%s : CCSP_SUPPORT_NOT_ENABLED\n",__FUNCTION__ ));
-        	#endif
   	}
 }
 
@@ -467,23 +427,6 @@ void sendDataToEvent(char* event_name , char* eventData)
             	rbusValue_Release(value);
             	WbInfo(("%s --out\n", __FUNCTION__));
     	}
-    	else
-    	{
-        	#if defined(CCSP_SUPPORT_ENABLED)
-            	WbInfo(("%s : calling CcspBaseIf_SendSignal_WithData,event_name is %s\n", __FUNCTION__,event_name));
-                int ret = 0;
-
-            	ret = CcspBaseIf_SendSignal_WithData(bus_handle,event_name,eventData);
-
-            	if ( ret != CCSP_SUCCESS )
-            	{
-                 	WbError(("%s : %s event failed,  ret value is %d\n",__FUNCTION__,event_name,ret));
-            	}
-            	WbInfo(("%s : return value is %d \n", __FUNCTION__,ret));
-        	#else
-              	WbError(("%s : CCSP_SUPPORT_NOT_ENABLED\n",__FUNCTION__ ));
-        	#endif
-          }
 }
 
 /*************************************************************************************************************************************
@@ -518,23 +461,6 @@ void EventRegister(char* EventName)
             	{
                 	ret = rbus_regDataElements(bus_handle_rbus, 1, dataElements_master);
             	}
-    	}
-    	else
-    	{
-        	#if defined(CCSP_SUPPORT_ENABLED)
-            	ret = CcspBaseIf_Register_Event(bus_handle, NULL, EventName );
-            	if (ret != CCSP_Message_Bus_OK) {
-                    WbError(("%s reg unsuccessfull\n",EventName));
-                    return ;
-            	} 
-		else {
-                    WbInfo(("%s registration with CCSP Bus successful\n",EventName));
-            	}
-
-            	WbInfo(("%s : return value is %d \n", __FUNCTION__,ret));
-        	#else
-              	WbError(("%s : CCSP_SUPPORT_NOT_ENABLED\n",__FUNCTION__ ));
-        	#endif
     	}
         WbInfo(("Exiting from %s and return value is %d\n", __FUNCTION__,ret));
 	return;
@@ -603,20 +529,6 @@ void UnregisterFromEvent(char* EventName)
 
                 }
          }
-         else
-         {
-         	#if defined(CCSP_SUPPORT_ENABLED)
-                ret = CcspBaseIf_UnRegister_Event(bus_handle, NULL, EventName);
-                if (ret != CCSP_Message_Bus_OK) {
-               		WbError(("%s unreg failed\n",EventName));
-                    	return ;
-                }else {
-                    	WbInfo(("%s UnRegistration with CCSP Bus successful\n",EventName));
-                }
-              	#else
-                WbError(("%s : CCSP_SUPPORT_NOT_ENABLED\n",__FUNCTION__ ));
-              	#endif
-          }
 
           WbInfo(("Exiting from %s and return value is %d\n", __FUNCTION__,ret));
     	return ;
@@ -716,16 +628,4 @@ void sendWebConfigSignal(char* data)
 		rbusValue_Release(setVal);
 		#endif
         }
-        else
-        {
-            	#if defined(CCSP_SUPPORT_ENABLED)
-                ret =  CcspBaseIf_WebConfigSignal(bus_handle, data);
-
-                if ( ret != CCSP_SUCCESS )
-                    WbError(("%s : CcspBaseIf_WebConfigSignal failed,  ret value is %d\n",__FUNCTION__,ret));
-            	#else
-                WbError(("%s : CCSP_SUPPORT_NOT_ENABLED\n",__FUNCTION__ ));
-            	#endif
-        }
-    	return ;
 }
