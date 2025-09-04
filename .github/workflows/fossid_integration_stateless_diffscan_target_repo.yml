@@ -4,6 +4,7 @@ on: pull_request
 
 jobs:
   call-fossid-workflow:
+    if: ${{ ! github.event.pull_request.head.repo.fork }}
     uses: rdkcentral/build_tools_workflows/.github/workflows/fossid_integration_stateless_diffscan.yml@develop
     secrets: 
         FOSSID_CONTAINER_USERNAME: ${{ secrets.FOSSID_CONTAINER_USERNAME }}
