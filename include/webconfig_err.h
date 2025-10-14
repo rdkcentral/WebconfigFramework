@@ -51,6 +51,8 @@
 #define OVERLAPPING_SPEEDBOOST_PORT             322
 #endif
 
+#define HOTSPOT_DISABLED                        323
+
 #define SYSCFG_FAILURE            	    	601
 #define SYSEVENT_FAILURE            		602
 #define MSG_QUEUE_POST_FAILURE          	603
