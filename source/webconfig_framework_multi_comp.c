@@ -429,12 +429,7 @@ void rollbackLastExec(char* subdoc_name)
               		UnSubscribeFromEvent(SLAVE_COMP_SIGNAL_NAME);
               		// For RBUS unreg is called from eventSubHandler callback
           	}
-          	else
-          	{
-              		UnregisterFromEvent(SLAVE_COMP_SIGNAL_NAME);
-          	}
     	}
-      	return ;
 }
 
 /*************************************************************************************************************************************
@@ -534,10 +529,6 @@ void sendBlobExecutionResult(char* subdoc_name, int exec_status, int execRet, ch
             	{
                 	UnSubscribeFromEvent(SLAVE_COMP_SIGNAL_NAME);
                 	// For RBUS unreg is called from eventSubHandler callback
-            	}
-            	else
-            	{
-                	UnregisterFromEvent(SLAVE_COMP_SIGNAL_NAME);
             	}
       	}
 }
@@ -1924,7 +1915,7 @@ void* messageQueueProcessingMultiComp()
                                                         WbError(("Unable to subscribe to event %s with rbus \n", MASTER_COMP_SIGNAL_NAME));
     							if(exec_data->disableWebCfgNotification != 1)
  							{
-                                                                send_NACK(exec_data->subdoc_name,mCompQueueData.txid_queue[mCompQueueData.front],exec_data->version,SLAVE_RESPONSE_TIME_OUT,"Slave response Timedout");
+                                                        	send_NACK(exec_data->subdoc_name,mCompQueueData.txid_queue[mCompQueueData.front],exec_data->version,SLAVE_RESPONSE_TIME_OUT,"Slave response Timedout");
                                                         }
                                           		goto ROLLBACK;
                                       		}
@@ -1947,8 +1938,8 @@ void* messageQueueProcessingMultiComp()
   							if(exec_data->disableWebCfgNotification != 1)
                                                         {
                                   			        send_NACK(exec_data->subdoc_name,mCompQueueData.txid_queue[mCompQueueData.front],exec_data->version,SLAVE_RESPONSE_TIME_OUT,"Slave response Timedout");
-                                  			        pthread_mutex_unlock(&MultiCompMutex);
                                                         }
+                                            		pthread_mutex_unlock(&MultiCompMutex);
                                   			goto ROLLBACK;
                               			} 
                           		}
@@ -1979,8 +1970,8 @@ void* messageQueueProcessingMultiComp()
             						if(exec_data->disableWebCfgNotification != 1)
                                                         {
                                                                 send_NACK(exec_data->subdoc_name,mCompQueueData.txid_queue[mCompQueueData.front],exec_data->version,SLAVE_RESPONSE_TIME_OUT,"Slave response Timedout");
-                                                                pthread_mutex_unlock(&MultiCompMutex);
                                                         }
+                                            		pthread_mutex_unlock(&MultiCompMutex);
                                 			goto ROLLBACK;
                             			}
                           		}
@@ -1993,7 +1984,7 @@ void* messageQueueProcessingMultiComp()
                           		pthread_mutex_lock(&multiCompState_access);
                     			totalTimeout += mCompExecState->timeout ; 
                           		pthread_mutex_unlock(&multiCompState_access);
-                                WbWarning(("DEBUG : before sendDataToSlaveComp, wifi data pointer is %p\n",sequenceData->multiCompExecData->comp_exec_data));
+                                	WbWarning(("DEBUG : before sendDataToSlaveComp, wifi data pointer is %p\n",sequenceData->multiCompExecData->comp_exec_data));
 
                     			sendDataToSlaveComp(sequenceData->multiCompExecData->CompName,exec_data->subdoc_name,sequenceData->multiCompExecData->comp_exec_data);
 					
@@ -2013,8 +2004,8 @@ void* messageQueueProcessingMultiComp()
                                                         if(exec_data->disableWebCfgNotification != 1)
                                                         {
                                                                 send_NACK(exec_data->subdoc_name,mCompQueueData.txid_queue[mCompQueueData.front],exec_data->version,SLAVE_EXEC_TIME_OUT,"Slave comp Execution Timedout");
-                                                                pthread_mutex_unlock(&MultiCompMutex);
                                                         }
+                                            		pthread_mutex_unlock(&MultiCompMutex);
                                				goto ROLLBACK;
                          			}
                          			else
@@ -2025,9 +2016,9 @@ void* messageQueueProcessingMultiComp()
                                                                 if(exec_data->disableWebCfgNotification != 1)
                                                                 { 
                                                                         send_NACK(exec_data->subdoc_name,mCompQueueData.txid_queue[mCompQueueData.front],exec_data->version,mCompExecState->execResult,mCompExecState->execRetMsg);
-                                                                        pthread_mutex_unlock(&MultiCompMutex);
-                                                                        pthread_mutex_unlock(&multiCompState_access);
                                                                 }
+                                                    		pthread_mutex_unlock(&MultiCompMutex);
+                                                    		pthread_mutex_unlock(&multiCompState_access);
                                     				goto ROLLBACK;
                                 			}
                                 			pthread_mutex_unlock(&multiCompState_access);
@@ -2069,9 +2060,9 @@ void* messageQueueProcessingMultiComp()
                                     			}
                                     			else
                                     			{
+                                                                WbError(("%s : Execution failed Error Code :%hu Reason: %s \n",__FUNCTION__,execReturnMultiComp->ErrorCode,execReturnMultiComp->ErrorMsg));
                                                                 if(exec_data->disableWebCfgNotification != 1)
                                                                 {
-                                                                        WbError(("%s : Execution failed Error Code :%hu Reason: %s \n",__FUNCTION__,execReturnMultiComp->ErrorCode,execReturnMultiComp->ErrorMsg));
                                                                         send_NACK(exec_data->subdoc_name,mCompQueueData.txid_queue[mCompQueueData.front],exec_data->version,execReturnMultiComp->ErrorCode,execReturnMultiComp->ErrorMsg); 
                                                                 }
                                       				if ( (exec_data->rollbackFunc) && ( VALIDATION_FALIED != execReturnMultiComp->ErrorCode ) )
@@ -2097,12 +2088,12 @@ void* messageQueueProcessingMultiComp()
                                     			if (err == ETIMEDOUT)
                                     			{
                                          			pthread_cancel(tid);
+                                                                WbError(("%s: subdoc %s , txid %hu , version %u execution timedout\n", __FUNCTION__,exec_data->subdoc_name,mCompQueueData.txid_queue[mCompQueueData.front],exec_data->version));
                                                                 if(exec_data->disableWebCfgNotification != 1)
                                                                 {
-                                                                        WbError(("%s: subdoc %s , txid %hu , version %u execution timedout\n", __FUNCTION__,exec_data->subdoc_name,mCompQueueData.txid_queue[mCompQueueData.front],exec_data->version));
                                                                         send_NACK(exec_data->subdoc_name,mCompQueueData.txid_queue[mCompQueueData.front],exec_data->version,BLOB_EXECUTION_TIMEDOUT,"Blob Execution Timedout");
-                                                                        pthread_mutex_unlock(&MultiCompMutex);
                                                                 }
+                                                                pthread_mutex_unlock(&MultiCompMutex);
                                         			if ( exec_data->rollbackFunc )
                                         			{
                                              				rollbkRet = exec_data->rollbackFunc();
@@ -2121,9 +2112,9 @@ void* messageQueueProcessingMultiComp()
                                       				}
                                       				else
                                       				{
+                                                                        WbError(("%s : Execution failed Error Code :%hu Reason: %s \n",__FUNCTION__,execReturnMultiComp->ErrorCode,execReturnMultiComp->ErrorMsg));
                                                                         if(exec_data->disableWebCfgNotification != 1)
                                                                         {
-                                                                                WbError(("%s : Execution failed Error Code :%hu Reason: %s \n",__FUNCTION__,execReturnMultiComp->ErrorCode,execReturnMultiComp->ErrorMsg));
                                                                                 send_NACK(exec_data->subdoc_name,mCompQueueData.txid_queue[mCompQueueData.front],exec_data->version,execReturnMultiComp->ErrorCode,execReturnMultiComp->ErrorMsg);
                                                                         }
                                           				if ( (exec_data->rollbackFunc) && ( VALIDATION_FALIED != execReturnMultiComp->ErrorCode ) )
@@ -2143,12 +2134,12 @@ void* messageQueueProcessingMultiComp()
                           		}
                          		else
                           		{
+                                                WbError(("%s executeBlobRequest function pointer is NULL , Send NACK\n",__FUNCTION__));
                                                 if(exec_data->disableWebCfgNotification != 1)
                                                 { 
-                                                         WbError(("%s executeBlobRequest function pointer is NULL , Send NACK\n",__FUNCTION__));
                                                          send_NACK(exec_data->subdoc_name,mCompQueueData.txid_queue[mCompQueueData.front],exec_data->version,NULL_BLOB_EXEC_POINTER,"Null Execution Pointer passed");
-                                                         pthread_mutex_unlock(&MultiCompMutex);
                                                 }
+                                        	pthread_mutex_unlock(&MultiCompMutex);
                             			goto ROLLBACK;
                           		}
 
@@ -2183,8 +2174,8 @@ void* messageQueueProcessingMultiComp()
                                                                 if(exec_data->disableWebCfgNotification != 1)
                                                                 {
                                                                         send_NACK(exec_data->subdoc_name,mCompQueueData.txid_queue[mCompQueueData.front],exec_data->version,mCompExecState->execResult,mCompExecState->execRetMsg);
-                                                                        pthread_mutex_unlock(&multiCompState_access);
                                                                 }
+                                                    		pthread_mutex_unlock(&multiCompState_access);
                                         			goto ROLLBACK;
                                     			} 
                               			}
@@ -2227,11 +2218,10 @@ void* messageQueueProcessingMultiComp()
                                         if(exec_data->disableWebCfgNotification != 1)
                                         {
                                                 send_NACK(exec_data->subdoc_name,mCompQueueData.txid_queue[mCompQueueData.front],exec_data->version,SLAVE_EXEC_TIME_OUT,"Blob Execution Timedout");
-                                                pthread_mutex_unlock(&MultiCompMutex);
                                         }
+                                    	pthread_mutex_unlock(&MultiCompMutex);
                                   	goto ROLLBACK;
                         	}
-
                         	pthread_mutex_unlock(&MultiCompMutex);
 
                     	    }
@@ -2562,9 +2552,9 @@ void PushMultiCompBlobRequest (execData *exec_data )
       	/* open the message queue */
     	if ( 1 == isWebCfgRbusEnabled()  && !gBroadcastSubscribed )
     	{       
+                WbError(("Slave component is not yet ready to receive the requests, sending NACK \n"));
                 if(exec_data->disableWebCfgNotification != 1)
                 {
-                        WbError(("Slave component is not yet ready to receive the requests, sending NACK \n"));
                         send_NACK(exec_data->subdoc_name,exec_data->txid,exec_data->version,SLAVE_NOT_READY,"Slave Comp Not Ready");
                 }
         	goto EXIT;
@@ -2577,9 +2567,9 @@ void PushMultiCompBlobRequest (execData *exec_data )
         	//CHECK((mqd_t)-1 != mq);
         	if ( (mqd_t)-1 == mq )
         	{
+                        WbError(("%s message queue open failed , ERROR : %s\n",__FUNCTION__,strerror(errno)));
                         if(exec_data->disableWebCfgNotification != 1)
                         {
-                                WbError(("%s message queue open failed , ERROR : %s\n",__FUNCTION__,strerror(errno)));
                                 send_NACK(exec_data->subdoc_name,exec_data->txid,exec_data->version,MQUEUE_OPEN_FAILED,"MQ OPEN FAILED");
                         }
           		goto EXIT;
@@ -2599,16 +2589,16 @@ void PushMultiCompBlobRequest (execData *exec_data )
     		{
 
                         //send notification only when blob received from cloud
+                        WbInfo(("%s : Send received request ACK , timeout is %lu\n",__FUNCTION__,timeout_to_webconfig));
                         if(exec_data->disableWebCfgNotification != 1)
                         {
-                            WbInfo(("%s : Send received request ACK , timeout is %lu\n",__FUNCTION__,timeout_to_webconfig));
                             send_ACK(exec_data->subdoc_name,exec_data->txid,exec_data->version,timeout_to_webconfig,"");
                         }
                 	if ( 0 != mq_send(mq, (char*) exec_data, sizeof(*exec_data), 0))
                 	{
+                                WbError(("%s message queue send failed , ERROR is : %s\n",__FUNCTION__,strerror(errno)));
                                 if(exec_data->disableWebCfgNotification != 1)
                                 {
-                                        WbError(("%s message queue send failed , ERROR is : %s\n",__FUNCTION__,strerror(errno)));
                                         send_NACK(exec_data->subdoc_name,exec_data->txid,exec_data->version,MQUEUE_SEND_FAILED,"MQ SEND FAILED");
                                 }
                     		removeEntryfromRearEndMultiComp();
@@ -2651,9 +2641,9 @@ void PushMultiCompBlobRequest (execData *exec_data )
     		timeout_to_webconfig = timeout + (getPendingQueueTimeout(exec_data->txid)) + (getMultiCompPendingQueueTimeout(exec_data->txid)) ;
 
                 //send notification only when blob received from cloud
+                WbInfo(("%s : Send received request ACK , timeout is %lu\n",__FUNCTION__,timeout_to_webconfig));
                 if(exec_data->disableWebCfgNotification != 1)
                 {
-                        WbInfo(("%s : Send received request ACK , timeout is %lu\n",__FUNCTION__,timeout_to_webconfig));
                         send_ACK(exec_data->subdoc_name,exec_data->txid,exec_data->version,timeout_to_webconfig,"");
                 }
 
@@ -2668,14 +2658,11 @@ void PushMultiCompBlobRequest (execData *exec_data )
   	}
   	else if ( SUBDOC_NOT_SUPPORTED == retVal )
   	{
-                if(exec_data->disableWebCfgNotification != 1)
-                { 
     		    WbError(("Subdoc not registered , support not available . sending NACK\n"));
                     if(exec_data->disableWebCfgNotification != 1)
                     {
                             send_NACK(exec_data->subdoc_name,exec_data->txid,exec_data->version,SUBDOC_NOT_SUPPORTED,"INVALID SUBDOC");
                     }
-                }
   	}
 EXIT :
   	if ( exec_data->freeResources ) 
