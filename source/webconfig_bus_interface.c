@@ -235,7 +235,11 @@ void multiComp_callbk_rbus(rbusHandle_t handle, rbusEvent_t const* event, rbusEv
     	}
     	else if ( strncmp(eventName,MASTER_COMP_SIGNAL_NAME,strlen(MASTER_COMP_SIGNAL_NAME)) == 0 )
     	{
+                WbInfo(("rbus event cb %s sleep start \n",eventName));
+                sleep(60);
+                WbInfo(("rbus event cb %s sleep end \n",eventName));
         	parseMasterData(data);
+                WbInfo(("rbus event cb %s parse and send complete \n",eventName));
     	}
     	else if ( strncmp(eventName,SLAVE_COMP_SIGNAL_NAME,strlen(SLAVE_COMP_SIGNAL_NAME)) == 0 )
     	{

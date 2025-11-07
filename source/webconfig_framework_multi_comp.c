@@ -1811,6 +1811,7 @@ void* messageQueueProcessingMultiComp()
       	pthread_cond_init(&MultiCompCond, &mCompWebconfig_attr); 
 
 
+      	WbInfo(("%s Entry for processing %d \n",__FUNCTION__,__LINE__));
       	multiCompExecStatus *mCompExecState = NULL;
 
       	int totalTimeout = 0 ,  j = 0 , ret = 0;
@@ -1905,6 +1906,7 @@ void* messageQueueProcessingMultiComp()
                                 	while(1)
                                 	{
                                     		ret = subscribeToEvent(MASTER_COMP_SIGNAL_NAME);
+                                                WbInfo(("subscribeToEvent for MASTER_COMP_SIGNAL_NAME=%s\n",MASTER_COMP_SIGNAL_NAME));
                                     		if ( RBUS_ERROR_SUCCESS == ret )
                                     		{
                                           		break;
@@ -1930,6 +1932,7 @@ void* messageQueueProcessingMultiComp()
 
                     			abs_time.tv_sec += MAX_RESPONSE_TIME ;
                     			abs_time.tv_nsec += 0;
+                                        WbInfo(("subscribeToEvent is success for %s\n",MASTER_COMP_SIGNAL_NAME));
                           		if ( gReadyToReceive == 0 )
                           		{
                               			err = pthread_cond_timedwait(&MultiCompCond, &MultiCompMutex, &abs_time);
@@ -2027,7 +2030,11 @@ void* messageQueueProcessingMultiComp()
                             			pthread_mutex_unlock(&MultiCompMutex);
                           		}        
                                 
+                                        WbInfo(("unsubscribeToEvent for %s sleap start\n",MASTER_COMP_SIGNAL_NAME));
+                                        sleep(60);
+                                        WbInfo(("unsubscribeToEvent for %s sleap end\n",MASTER_COMP_SIGNAL_NAME));
                                 	UnSubscribeFromEvent(MASTER_COMP_SIGNAL_NAME);
+
                                     needEventUnSubscribe = 0 ;
                       		}
                       		else
@@ -2327,6 +2334,9 @@ ROLLBACK:
         WbInfo((" Rollback complete\n"));
         if (needEventUnSubscribe)
         {
+            WbInfo(("unsubscribeToEvent for %s sleap start\n",MASTER_COMP_SIGNAL_NAME));
+	    sleep(60);
+            WbInfo(("unsubscribeToEvent for %s sleap end\n",MASTER_COMP_SIGNAL_NAME));
             UnSubscribeFromEvent(MASTER_COMP_SIGNAL_NAME);
         }
 
