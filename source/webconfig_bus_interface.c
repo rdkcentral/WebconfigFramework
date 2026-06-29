@@ -54,6 +54,8 @@ int isWebCfgRbusEnabled()
     return gRbusEnabled;
 }
 
+volatile int g_subdocForceReset_subscribed = 0;
+
 void* subscribeSubdocForceReset(void* arg) {
 	pthread_detach(pthread_self());
 
@@ -82,6 +84,7 @@ void* subscribeSubdocForceReset(void* arg) {
 		else {
 			WbError(("%s: Unable to subscribe to event %s with rbus error code : %d\n", __FUNCTION__, WEBCFG_SUBDOC_FORCE_RESET_EVENT, ret));
 		}
+		g_subdocForceReset_subscribed = 1;
 		WbInfo(("%s: job done\n", __FUNCTION__));
 	}
 

@@ -29,6 +29,7 @@
 void rbusInit();
 int isWebCfgRbusEnabled();
 void* subscribeSubdocForceReset(void* arg);
+extern volatile int g_subdocForceReset_subscribed;
 void subdocForceReset_callbk_rbus(rbusHandle_t handle, rbusEvent_t const* event, rbusEventSubscription_t* subscription);
 bool webcfg_rbus_discover_component(char const *pParamName);
 
