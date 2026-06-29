@@ -1,0 +1,34 @@
+{
+  "_comment": "Component Build Configuration for Coverity/Native Builds",
+  "_version": "2.0",
+  "_description": "Defines dependencies and build settings for the native component",
+  
+  "dependencies": {
+    "_comment": "External repositories needed by this component",
+    "repos": [
+      {
+        "name": "rbus",
+        "repo": "https://github.com/rdkcentral/rbus.git",
+        "branch": "v2.7.0",
+        "header_paths": [
+          { "source": "include", "destination": "$HOME/usr/include/rdkb/rbus" }
+        ],
+        "build": {
+          "type": "cmake",
+          "build_dir": "build",
+          "cmake_flags": "-DCMAKE_INSTALL_PREFIX=$HOME/usr -DCMAKE_PREFIX_PATH=/usr -DBUILD_FOR_DESKTOP=ON -DCMAKE_BUILD_TYPE=Debug"
+        }
+      }
+      ]
+  },
+  "native_component": {
+    "_comment": "Configuration for the main component being built",
+    "name": "WebConfigFramework",
+    "include_path": "$HOME/usr/include/rdkb/",
+    "lib_output_path": "$HOME/usr/local/lib/",
+    "build": {
+      "type": "autotools",
+      "configure_options_file": "cov_docker_script/configure_options.conf"
+    }
+  }
+}
