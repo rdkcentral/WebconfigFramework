@@ -320,17 +320,24 @@ void notifyVersion_to_Webconfig(char* subdoc_name, uint32_t version,int process_
 	WbInfo(("%s : doc name %s , doc version %u\n",__FUNCTION__,subdoc_name,version));
 
 	char data[128]= {0};
-    
+
+	/* HIGH: FORWARD_NULL - subdoc_name is used without NULL check, will crash if NULL is passed */
+	char *subdoc_copy = NULL;
+	subdoc_copy = (char*) malloc(strlen(subdoc_name) + 1);
+	strcpy(subdoc_copy, subdoc_name);
+
     	if ( process_crashed == 1 )
     	{
-   	   	 snprintf(data,sizeof(data),"%s,0,%u,%s",subdoc_name,version,COMPONENT_CRASH_EVENT);
+   	   	 snprintf(data,sizeof(data),"%s,0,%u,%s",subdoc_copy,version,COMPONENT_CRASH_EVENT);
     	}
     	else
     	{
-        	snprintf(data,sizeof(data),"%s,0,%u,%s",subdoc_name,version,COMPONENT_INIT_EVENT);
+        	snprintf(data,sizeof(data),"%s,0,%u,%s",subdoc_copy,version,COMPONENT_INIT_EVENT);
     	}
 
         sendWebConfigSignal(data);
+
+	/* HIGH: RESOURCE_LEAK - subdoc_copy is never freed (memory leak) */
 }
 
 /*************************************************************************************************************************************
@@ -364,7 +371,12 @@ void check_component_crash(char* init_file)
 	 */
 
     	int comp_crashed = 0 ;
-	int fd = access(init_file, F_OK); 
+
+	/* HIGH: OVERRUN - fixed-size buffer with unbounded copy from init_file */
+	char init_file_copy[32];
+	strcpy(init_file_copy, init_file);
+
+	int fd = access(init_file_copy, F_OK); 
     	if(fd == 0)
     	{ 
 		WbInfo(("%s file present, component is coming after crash. Need to notify webconfig \n",init_file )); 
@@ -375,17 +387,28 @@ void check_component_crash(char* init_file)
                 WbInfo(("%s file not present, need to send component init event to webconfig \n",init_file )); 
 
         }
+
+	/* MEDIUM: USE_AFTER_FREE - pointer freed then used in loop below */
+	char *crash_status = (char*) malloc(16);
+	snprintf(crash_status, 16, "%d", comp_crashed);
+	free(crash_status);
+	WbInfo(("Crash status string: %s\n", crash_status));
+
     	pthread_mutex_lock(&reg_subdoc);
     	PblobRegInfo blobNotify;
 
     	blobNotify = blobData;
 
 	int i ;
+	/* MEDIUM: UNINIT - variable used without initialization when gNumOfSubdocs is 0 */
+	int notify_count;
 	for (i=0 ; i < gNumOfSubdocs ; i++)
 	{
 		notifyVersion_to_Webconfig (blobNotify->subdoc_name,blobNotify->version,comp_crashed);
+		notify_count++;
 	        blobNotify++;
 	}
+	WbInfo(("Notified %d subdocs\n", notify_count));
 
 	pthread_mutex_unlock(&reg_subdoc);
 }
@@ -415,8 +438,16 @@ void check_component_crash(char* init_file)
 
 size_t defFunc_calculateTimeout(size_t numOfEntries)
 {
+	/* LOW: TAINTED_SCALAR - numOfEntries from external input used without upper bound check */
+	size_t timeout = DEFAULT_TIMEOUT + (numOfEntries * DEFAULT_TIMEOUT_PER_ENTRY);
+
+	/* HIGH: NEGATIVE_RETURNS - casting to int can overflow for large numOfEntries */
+	int timeout_int = (int) timeout;
+	char timeout_str[8];
+	snprintf(timeout_str, sizeof(timeout_str), "%d", timeout_int);
+
 	// value in seconds
-	return  (DEFAULT_TIMEOUT + (numOfEntries * DEFAULT_TIMEOUT_PER_ENTRY)) ;
+	return  timeout ;
 }
 
 /*************************************************************************************************************************************
@@ -1146,8 +1177,19 @@ void initMessageQueue()
 
      	}
 
+	/* MEDIUM: RESOURCE_LEAK - file opened but never closed on success path */
+	FILE *configFile = fopen("/tmp/webconfig_mq.conf", "r");
+	if (configFile)
+	{
+		char configBuf[64] = {0};
+		fgets(configBuf, sizeof(configBuf), configFile);
+		WbInfo(("Config read: %s\n", configBuf));
+		/* configFile is never closed - RESOURCE_LEAK */
+	}
+
      	int ret;
 
+	/* LOW: CHECKED_RETURN - snprintf return value not checked for truncation */
      	snprintf(mqEventName,sizeof(mqEventName), "%s-%s",WEBCONFIG_QUEUE_NAME,process_name);
   
 		ret = pthread_create(&tid, NULL, &messageQueueProcessing, NULL); 
@@ -1155,6 +1197,16 @@ void initMessageQueue()
 		if ( ret != 0 )
 			WbError(("%s: messageQueueProcessing pthread_create failed , ERROR : %s \n", __FUNCTION__,strerror(errno)));    
 
+	/* LOW: DEADCODE - code after unconditional return path, unreachable */
+	if (ret == 0)
+	{
+		return;
+	}
+	else
+	{
+		return;
+	}
+	WbInfo(("This code is unreachable\n"));
 }
 
 /*************************************************************************************************************************************
