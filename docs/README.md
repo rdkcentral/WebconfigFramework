@@ -123,7 +123,7 @@ graph TD
 
 #### Platform and Integration Requirements
 
-- **Build Dependencies**: `rbus` (runtime bus library, required at link time); `libpthread`, `librt`, `libz` (linked via `libwebconfig_framework_la_LDFLAGS`). When `CCSP_SUPPORT_ENABLED` is set: `libccsp_common`. When the `safec` distro feature is present: `safec` (safe string library, added via Yocto recipe conditional).
+- **Build Dependencies**: `rbus` (runtime bus library, required at link time); `libpthread`, `librt`, `libz` (linked via `libwebconfig_framework_la_LDFLAGS`). When `CCSP_SUPPORT_ENABLED` is set: `libccsp_common`.
 - **Startup Order**: The library initializes fully within the calling component's process at `register_sub_docs()` time. There is no external daemon or service ordering requirement.
 
 ---
@@ -291,8 +291,6 @@ sequenceDiagram
 
 ---
 
----
-
 ## Component Interactions
 
 WebconfigFramework interacts externally with the rbus daemon for all outbound signaling and event subscriptions. All platform-specific operations are performed exclusively by the consuming component through its registered callbacks.
@@ -403,10 +401,10 @@ sequenceDiagram
 
 - **Event Processing**: Blob requests arrive at `PushBlobRequest()`, are serialized into the POSIX message queue (`mq_send`), and consumed by `messageQueueProcessing`. The worker thread spawns a cancelable `execute_request` thread per request and waits on `webconfig_exec_completed` condition variable with an absolute monotonic deadline of `MAX_FUNC_EXEC_TIMEOUT × calcTimeout` seconds. In multi-component mode, rbus event callbacks deliver signals to dedicated master/slave processing threads via `pthread_cond_signal` on `MultiCompCond`.
 
-- **Error Handling Strategy**: `executeBlobRequest` returns a heap-allocated `pErr` struct containing a `uint16_t ErrorCode` and a 128-byte `ErrorMsg`. Error code `BLOB_EXEC_SUCCESS` (300) indicates success; all other non-zero codes trigger NACK. The special code `VALIDATION_FALIED` (307) suppresses rollback invocation since no state was changed. The error code and message are embedded verbatim into the NACK signal sent to the webconfig client. The framework frees the returned `pErr` struct after processing.
+- **Error Handling Strategy**: `executeBlobRequest` returns a heap-allocated `pErr` struct containing a `uint16_t ErrorCode` and a 128-byte `ErrorMsg`. Error code `BLOB_EXEC_SUCCESS` (300) indicates success; all other non-zero codes trigger NACK. The special code `VALIDATION_FALIED` (307) (note: spelled this way in `webconfig_err.h`) suppresses rollback invocation since no state was changed. The error code and message are embedded verbatim into the NACK signal sent to the webconfig client. The framework frees the returned `pErr` struct after processing.
 
 - **Logging & Diagnostics**: The logging module selects its backend at compile time: `WbInfo`, `WbError`, `WbWarning`, and `WbDebug` macros map to CCSP trace functions when `CCSP_SUPPORT_ENABLED` is set, to `cimplog_*` functions when `ENABLE_RDKC_SUPPORT` is set, and to `wbTraceLogAPI()` (a `printf`-based implementation) otherwise.
-  - Logger module name: `LOG.RDK.WEBCONFIG`
+  - Logger module name: `WEBCONFIG` (cimplog tag); `LOG.RDK.WEBCONFIG` is returned by `rdk_logger_module_fetch()` when `ENABLE_RDKC_SUPPORT` is enabled.
   - Runtime debug trigger: creating `/tmp/webconfig_dbg` activates the `display_subDocs` thread to log queue state and registered sub-document versions at a configurable interval.
 
 ---
