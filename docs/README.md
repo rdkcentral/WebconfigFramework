@@ -38,8 +38,8 @@ end
 
 WebcfgClient -->|"Config blob delivery"| CompA
 WebcfgClient -->|"Config blob delivery"| CompB
-CompA -->|"register / PushBlobRequest"| WCF
-CompB -->|"register / PushBlobRequest"| WCF
+CompA -->|"register_sub_docs / PushBlobRequest"| WCF
+CompB -->|"register_sub_docs / PushBlobRequest"| WCF
 WCF -->|"ACK / NACK (rbus signal)"| WebcfgClient
 Apps -->|"Firebolt APIs"| RDKMW
 RDKMW -->|"HAL APIs"| VL
@@ -172,7 +172,7 @@ sequenceDiagram
 
 **State Change Triggers:**
 
-- A blob delivered with a version matching the currently registered version is silently discarded (`VERSION_ALREADY_EXIST`). The exception is the `hotspot` sub-document when the version-ignore override file (`/tmp/hotspot_version_ignore`) is present, in which case the framework treats the request as a new version update.
+- A blob delivered with a version matching the currently registered version is treated as a no-op: it is not queued, and (unless `disableWebCfgNotification==1`) the framework sends an immediate ACK with `timeout=0` (`VERSION_ALREADY_EXIST`). The exception is the `hotspot` sub-document when the version-ignore override file (`/tmp/hotspot_version_ignore`) is present, in which case the framework treats the request as a new version update.
 - A blob with the same version already pending in the queue results in only the transaction ID being updated in the existing queue entry.
 - If `check_component_crash()` is called at startup and the init-file is present (indicating a previous crash), the framework reports all registered sub-document versions to the webconfig client with a `COMPONENT_CRASH_EVENT` tag; if absent, it sends `COMPONENT_INIT_EVENT`.
 - Upon receiving `Device.X_RDK_WebConfig.webcfgSubdocForceReset`, the framework calls `resetSubdocVersion()` for each comma-separated sub-document name in the event payload, zeroing the in-memory version so the next delivery of any version is treated as `VERSION_UPDATE_REQUIRED`.
@@ -235,9 +235,13 @@ sequenceDiagram
 
     WCF->>WCF: checkNewVersionUpdateRequired()
     alt VERSION_ALREADY_EXIST
-        WCF-->>Component: Returns (silent discard)
+        WCF->>RBUS: sendWebConfigSignal (ACK, timeout=0)
+        RBUS->>WebcfgClient: ACK signal (no-op)
+        WCF-->>Component: Returns
     else EXECUTION_IN_QUEUE
         WCF->>WCF: Update txid in existing queue entry
+        WCF->>RBUS: sendWebConfigSignal (ACK with timeout)
+        RBUS->>WebcfgClient: ACK signal (subdoc, txid, version, timeout)
         WCF-->>Component: Returns
     else VERSION_UPDATE_REQUIRED
         WCF->>WCF: calcTimeout(numOfEntries)
