@@ -180,7 +180,7 @@ sequenceDiagram
 **Context Switching Scenarios:**
 
 - If execution times out, the worker thread is cancelled, `BLOB_EXECUTION_TIMEDOUT` NACK is sent to the webconfig client, and the optional rollback function is invoked.
-- If the POSIX mqueue is full (queue depth `QUEUE_SIZE = 10` reached), the new request is rejected with a `QUEUE_PUSH_FAILED` NACK immediately.
+- If the internal circular queue is full (queue depth `QUEUE_SIZE = 10` reached), the new request is rejected with a `QUEUE_PUSH_FAILED` NACK immediately. (If `mq_send` fails, the framework sends `MQUEUE_SEND_FAILED`.)
 - In multi-component mode, a slave component that exceeds `MAX_RESPONSE_TIME` (150 seconds) causes the master to mark the execution as timed out and send a `SLAVE_RESPONSE_TIME_OUT` NACK to the webconfig client.
 
 ---
