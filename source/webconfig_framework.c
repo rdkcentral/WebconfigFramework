@@ -491,21 +491,12 @@ void send_NACK (char *subdoc_name, uint16_t txid, uint32_t version, uint16_t Err
 ****************************************************************************************************************************************/
 void send_ACK (char *subdoc_name, uint16_t txid, uint32_t version, unsigned long timeout,char *msg )
 {
+    (void)msg;
 	WbInfo(("%s : doc name %s , doc version %u, txid is %hu  timeout is %lu\n",__FUNCTION__,subdoc_name,version,txid,timeout));
 
 	char data[256]= {0};
 
-	if ( msg[0] == '\0' || msg[0] == '0' )
-	{
-    		snprintf(data,sizeof(data),"%s,%hu,%u,ACK,%lu",subdoc_name,txid,version,timeout);
-	}
-
-    	else
-    	{
-       		snprintf(data,sizeof(data),"%s,%hu,%u,ACK;%s,%lu",subdoc_name,txid,version,msg,timeout);
-	
-	}
-
+    snprintf(data,sizeof(data),"%s,%hu,%u,ACK,%lu",subdoc_name,txid,version,timeout);
     sendWebConfigSignal(data);
 
 }
