@@ -18,6 +18,7 @@
 */
 
 #include <fcntl.h>
+#include <sys/sysinfo.h>
 
 #include "webconfig_framework.h"
 #include "webconfig_bus_interface.h"
@@ -365,10 +366,26 @@ void check_component_crash(char* init_file)
 
     	int comp_crashed = 0 ;
 	int fd = access(init_file, F_OK); 
-    	if(fd == 0)
-    	{ 
-		WbInfo(("%s file present, component is coming after crash. Need to notify webconfig \n",init_file )); 
-        	comp_crashed = 1 ;
+        if(fd == 0)
+    	{
+		/**
+		 * Init file exists — component was initialized before.
+		 * Check system uptime: if still within BOOT_WINDOW_SEC,
+		 * this is a normal boot-time restart (e.g. Hotspot init cycle),
+		 * not a real crash.
+		 */
+		   struct sysinfo si;
+		    if (sysinfo(&si) == 0 && si.uptime < BOOT_WINDOW_SEC)
+		    {
+			    WbInfo(("%s file present but system uptime is only %ld seconds (boot window %d s), treating as init, not crash\n",
+				    init_file, si.uptime, BOOT_WINDOW_SEC));
+			    comp_crashed = 0;
+		    }
+		    else
+		    {
+			    WbInfo(("%s file present, component is coming after crash. Need to notify webconfig \n",init_file));
+			    comp_crashed = 1;
+		    }
         }
         else
         {
@@ -461,7 +478,6 @@ void send_NACK (char *subdoc_name, uint16_t txid, uint32_t version, uint16_t Err
     sendWebConfigSignal(data);
 
 }
-error;
 /*************************************************************************************************************************************
 
     caller:    PushBlobRequest, messageQueueProcessing

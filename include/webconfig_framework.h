@@ -97,6 +97,8 @@ extern ANSC_HANDLE bus_handle;
 #define DEFAULT_DEBUG_INTERVAL 			10
 #define DEFAULT_DEBUG_ITER 			12
 
+// Boot window (seconds): component restarts within this uptime are treated as init, not crash
+#define BOOT_WINDOW_SEC				600
 
 #define MAX_PARAM_NAME 				256
 #define MAX_PARAM_VALUE 			256
