@@ -92,6 +92,15 @@ extern ANSC_HANDLE bus_handle;
 // Blob MAX execution timeout will be  MAX_FUNC_EXEC_TIMEOUT * TIMEOUT 
 #define MAX_FUNC_EXEC_TIMEOUT 			3
 
+// Default retry configuration for transient errors
+#define DEFAULT_MAX_RETRIES 			3
+#define DEFAULT_RETRY_INTERVAL_SEC 		10
+
+// Execution state file for crash detection
+#define EXEC_STATE_FILE_PREFIX 			"/tmp/.webcfg_exec_state_"
+#define EXEC_STATE_IN_PROGRESS 			"IN_PROGRESS"
+#define EXEC_STATE_COMPLETED 			"COMPLETED"
+
 // Default log interval and iterations
 
 #define DEFAULT_DEBUG_INTERVAL 			10
@@ -307,6 +316,8 @@ _execData
 	void (*freeResources) (void *);	
 	int multiCompRequest;
         int disableWebCfgNotification;
+	int maxRetries;                   // max retries for transient failures (0 = use default)
+	unsigned long retryIntervalInSec; // delay between retries (0 = use default)
 } execData; 
 
 
@@ -479,6 +490,10 @@ void sendWebConfigSignal(char* data);
 size_t getPendingQueueTimeout(uint16_t txid);
 
 int resetSubdocVersion(char* subdoc_name);
+
+int isTransientError(uint16_t errorCode);
+void writeExecState(char* subdoc_name, const char* state);
+void removeExecState(char* subdoc_name);
 
 #ifdef WBCFG_MULTI_COMP_SUPPORT
 

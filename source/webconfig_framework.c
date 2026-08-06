@@ -291,6 +291,64 @@ void register_sub_docs(blobRegInfo *bInfo,int NumOfSubdocs, getVersion getv , se
 
 /*************************************************************************************************************************************
 
+    caller:    messageQueueProcessing
+
+    description :
+		Function to check if an error code is transient and eligible for retry
+
+**************************************************************************************************************************************/
+
+int isTransientError(uint16_t errorCode)
+{
+	switch(errorCode)
+	{
+		case HOTSPOT_DISABLED:
+			return 1;
+		default:
+			return 0;
+	}
+}
+
+/*************************************************************************************************************************************
+
+    caller:    messageQueueProcessing
+
+    description :
+		Write execution state to a persistent file for crash detection improvement.
+		State file: /tmp/.webcfg_exec_state_<subdoc_name>
+
+**************************************************************************************************************************************/
+
+void writeExecState(char* subdoc_name, const char* state)
+{
+	char filePath[128] = {0};
+	snprintf(filePath, sizeof(filePath), "%s%s", EXEC_STATE_FILE_PREFIX, subdoc_name);
+	FILE *fp = fopen(filePath, "w");
+	if (fp)
+	{
+		fprintf(fp, "%s", state);
+		fclose(fp);
+	}
+}
+
+/*************************************************************************************************************************************
+
+    caller:    messageQueueProcessing
+
+    description :
+		Remove execution state file after successful completion
+
+**************************************************************************************************************************************/
+
+void removeExecState(char* subdoc_name)
+{
+	char filePath[128] = {0};
+	snprintf(filePath, sizeof(filePath), "%s%s", EXEC_STATE_FILE_PREFIX, subdoc_name);
+	unlink(filePath);
+}
+
+/*************************************************************************************************************************************
+
     caller:    check_component_crash
 
     prototype:
@@ -367,7 +425,7 @@ void check_component_crash(char* init_file)
 	int fd = access(init_file, F_OK); 
     	if(fd == 0)
     	{ 
-		WbInfo(("%s file present, component is coming after crash. Need to notify webconfig \n",init_file )); 
+		WbInfo(("%s file present, component is coming after restart. \n",init_file )); 
         	comp_crashed = 1 ;
         }
         else
@@ -383,7 +441,33 @@ void check_component_crash(char* init_file)
 	int i ;
 	for (i=0 ; i < gNumOfSubdocs ; i++)
 	{
-		notifyVersion_to_Webconfig (blobNotify->subdoc_name,blobNotify->version,comp_crashed);
+		int subdoc_crashed = comp_crashed;
+
+		if (comp_crashed == 1)
+		{
+			/* Check execution state file to distinguish real crash from graceful restart.
+			 * If exec state file shows IN_PROGRESS, the component crashed mid-execution.
+			 * If no exec state file exists, the previous execution completed cleanly
+			 * (file is removed on success) — this is a graceful restart, not a crash. */
+			char statePath[128] = {0};
+			snprintf(statePath, sizeof(statePath), "%s%s", EXEC_STATE_FILE_PREFIX, blobNotify->subdoc_name);
+
+			if (access(statePath, F_OK) == 0)
+			{
+				/* State file exists — blob was IN_PROGRESS when component died → real crash */
+				WbInfo(("Exec state file found for %s, component crashed mid-execution\n", blobNotify->subdoc_name));
+				unlink(statePath);
+				subdoc_crashed = 1;
+			}
+			else
+			{
+				/* No state file — previous execution completed successfully before restart */
+				WbInfo(("No exec state file for %s, treating as graceful restart (not crash)\n", blobNotify->subdoc_name));
+				subdoc_crashed = 0;
+			}
+		}
+
+		notifyVersion_to_Webconfig (blobNotify->subdoc_name,blobNotify->version,subdoc_crashed);
 	        blobNotify++;
 	}
 
@@ -511,6 +595,7 @@ void send_NACK (char *subdoc_name, uint16_t txid, uint32_t version, uint16_t Err
 }
 */
 
+error;
 void send_ACK (char *subdoc_name, uint16_t txid, uint32_t version, unsigned long timeout,char *msg )
 {
     (void)msg;
@@ -981,7 +1066,13 @@ void* messageQueueProcessing()
 
 		        if ( exec_data->executeBlobRequest )
 			{
-			 
+				int retryCount = 0;
+				int maxRetries = exec_data->maxRetries > 0 ? exec_data->maxRetries : DEFAULT_MAX_RETRIES;
+				unsigned long retryInterval = exec_data->retryIntervalInSec > 0 ? exec_data->retryIntervalInSec : DEFAULT_RETRY_INTERVAL_SEC;
+
+				writeExecState(exec_data->subdoc_name, EXEC_STATE_IN_PROGRESS);
+
+RETRY_EXECUTION:
 				pthreadRetValue=pthread_create(&tid, NULL, execute_request,(void*)buffer);
 
 			        if ( 0 == pthreadRetValue )
@@ -1023,11 +1114,23 @@ void* messageQueueProcessing()
 			        		{
 							WbInfo(("%s : Execution success , sending completed ACK\n",__FUNCTION__));
 							updateVersionAndState(exec_data->version,execReturn->ErrorCode,blobDataProcessing);
+							removeExecState(exec_data->subdoc_name);
                                                         if(exec_data->disableWebCfgNotification != 1)
                                                         {
 							        send_ACK(exec_data->subdoc_name,queueData.txid_queue[queueData.front],exec_data->version,0,execReturn->ErrorMsg);
                                                         }
 				        	}
+				        	else if ( isTransientError(execReturn->ErrorCode) && retryCount < maxRetries )
+						{
+							retryCount++;
+							WbInfo(("%s : Transient error %hu for subdoc %s, retry %d/%d after %lu sec\n",
+								__FUNCTION__, execReturn->ErrorCode, exec_data->subdoc_name,
+								retryCount, maxRetries, retryInterval));
+
+							if (execReturn != NULL) { free(execReturn); execReturn = NULL; }
+							sleep(retryInterval);
+							goto RETRY_EXECUTION;
+						}
 				        	else
 						{
 							WbError(("%s : Execution failed Error Code :%hu Reason: %s \n",__FUNCTION__,execReturn->ErrorCode,execReturn->ErrorMsg));
@@ -1059,6 +1162,7 @@ void* messageQueueProcessing()
 				        {
 						WbInfo(("%s : Execution success , sending completed ACK\n",__FUNCTION__));
 						updateVersionAndState(exec_data->version,execReturn->ErrorCode,blobDataProcessing);
+						removeExecState(exec_data->subdoc_name);
                                                 if(exec_data->disableWebCfgNotification != 1)
                                                 {
 						        send_ACK(exec_data->subdoc_name,queueData.txid_queue[queueData.front],exec_data->version,0,execReturn->ErrorMsg);
