@@ -461,7 +461,7 @@ void send_NACK (char *subdoc_name, uint16_t txid, uint32_t version, uint16_t Err
     sendWebConfigSignal(data);
 
 }
-
+error;
 /*************************************************************************************************************************************
 
     caller:    PushBlobRequest, messageQueueProcessing
