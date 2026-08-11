@@ -493,7 +493,6 @@ void send_ACK (char *subdoc_name, uint16_t txid, uint32_t version, unsigned long
 {
     (void)msg;
 	WbInfo(("%s : doc name %s , doc version %u, txid is %hu  timeout is %lu\n",__FUNCTION__,subdoc_name,version,txid,timeout));
-	WbInfo(("%s: --msg:%s\n",__FUNCTION__,msg));
 
 	char data[256]= {0};
 
