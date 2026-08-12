@@ -489,9 +489,8 @@ void send_NACK (char *subdoc_name, uint16_t txid, uint32_t version, uint16_t Err
 		unsigned long timeout --> Timeout value needed for blob execution
 		
 ****************************************************************************************************************************************/
-void send_ACK (char *subdoc_name, uint16_t txid, uint32_t version, unsigned long timeout,char *msg )
+void send_ACK (char *subdoc_name, uint16_t txid, uint32_t version, unsigned long timeout)
 {
-    (void)msg;
 	WbInfo(("%s : doc name %s , doc version %u, txid is %hu  timeout is %lu\n",__FUNCTION__,subdoc_name,version,txid,timeout));
 
 	char data[256]= {0};
@@ -1003,7 +1002,7 @@ void* messageQueueProcessing()
 							updateVersionAndState(exec_data->version,execReturn->ErrorCode,blobDataProcessing);
                                                         if(exec_data->disableWebCfgNotification != 1)
                                                         {
-							        send_ACK(exec_data->subdoc_name,queueData.txid_queue[queueData.front],exec_data->version,0,execReturn->ErrorMsg);
+							        send_ACK(exec_data->subdoc_name,queueData.txid_queue[queueData.front],exec_data->version,0);
                                                         }
 				        	}
 				        	else
@@ -1039,7 +1038,7 @@ void* messageQueueProcessing()
 						updateVersionAndState(exec_data->version,execReturn->ErrorCode,blobDataProcessing);
                                                 if(exec_data->disableWebCfgNotification != 1)
                                                 {
-						        send_ACK(exec_data->subdoc_name,queueData.txid_queue[queueData.front],exec_data->version,0,execReturn->ErrorMsg);
+						        send_ACK(exec_data->subdoc_name,queueData.txid_queue[queueData.front],exec_data->version,0);
                                                 }
 				        }
 				        else
@@ -1451,7 +1450,7 @@ void PushBlobRequest (execData *exec_data )
 	
 			        WbInfo(("%s : Send received request ACK , timeout is %lu\n",__FUNCTION__,timeout_to_webconfig));
 
-			        send_ACK(exec_data->subdoc_name,exec_data->txid,exec_data->version,timeout_to_webconfig,"");
+			        send_ACK(exec_data->subdoc_name,exec_data->txid,exec_data->version,timeout_to_webconfig);
                         }
 			
             		if ( 0 != mq_send(mq, (char*) exec_data, sizeof(*exec_data), 0))
@@ -1513,7 +1512,7 @@ void PushBlobRequest (execData *exec_data )
                 {
 		        WbInfo(("%s : Send received request ACK , timeout is %lu\n",__FUNCTION__,timeout_to_webconfig));
 
-		        send_ACK(exec_data->subdoc_name,exec_data->txid,exec_data->version,timeout_to_webconfig,"");
+		        send_ACK(exec_data->subdoc_name,exec_data->txid,exec_data->version,timeout_to_webconfig);
                 }
 
 	}
@@ -1522,7 +1521,7 @@ void PushBlobRequest (execData *exec_data )
 		WbInfo(("Already having updated version, no need to prcess Blob request\n"));
                 if(exec_data->disableWebCfgNotification != 1)
                 {
-		        send_ACK(exec_data->subdoc_name,exec_data->txid,exec_data->version,0,"");
+		        send_ACK(exec_data->subdoc_name,exec_data->txid,exec_data->version,0);
                 }
 	}
 
