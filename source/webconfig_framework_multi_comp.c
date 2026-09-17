@@ -2254,7 +2254,7 @@ SENDACK:
         //send notification only when blob receviced from cloud
         if(exec_data->disableWebCfgNotification != 1)
         {
-            send_ACK(exec_data->subdoc_name,mCompQueueData.txid_queue[mCompQueueData.front],exec_data->version,0,execReturnMultiComp->ErrorMsg);
+            send_ACK(exec_data->subdoc_name,mCompQueueData.txid_queue[mCompQueueData.front],exec_data->version,0);
         }
         goto EXIT;
 
@@ -2592,7 +2592,7 @@ void PushMultiCompBlobRequest (execData *exec_data )
                         WbInfo(("%s : Send received request ACK , timeout is %lu\n",__FUNCTION__,timeout_to_webconfig));
                         if(exec_data->disableWebCfgNotification != 1)
                         {
-                            send_ACK(exec_data->subdoc_name,exec_data->txid,exec_data->version,timeout_to_webconfig,"");
+                            send_ACK(exec_data->subdoc_name,exec_data->txid,exec_data->version,timeout_to_webconfig);
                         }
                 	if ( 0 != mq_send(mq, (char*) exec_data, sizeof(*exec_data), 0))
                 	{
@@ -2644,7 +2644,7 @@ void PushMultiCompBlobRequest (execData *exec_data )
                 WbInfo(("%s : Send received request ACK , timeout is %lu\n",__FUNCTION__,timeout_to_webconfig));
                 if(exec_data->disableWebCfgNotification != 1)
                 {
-                        send_ACK(exec_data->subdoc_name,exec_data->txid,exec_data->version,timeout_to_webconfig,"");
+                        send_ACK(exec_data->subdoc_name,exec_data->txid,exec_data->version,timeout_to_webconfig);
                 }
 
   	}
@@ -2653,7 +2653,7 @@ void PushMultiCompBlobRequest (execData *exec_data )
     		WbInfo(("Already having updated version, no need to prcess Blob request\n"));
                 if(exec_data->disableWebCfgNotification != 1)
                 {
-                    send_ACK(exec_data->subdoc_name,exec_data->txid,exec_data->version,0,"");
+                    send_ACK(exec_data->subdoc_name,exec_data->txid,exec_data->version,0);
                 }
   	}
   	else if ( SUBDOC_NOT_SUPPORTED == retVal )
