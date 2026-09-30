@@ -144,8 +144,7 @@ void parseBroadcastData(const char* info)
         memset(str,0,sizeof(str));
         snprintf(str,sizeof(str),"%s",info);
         pthread_t slaveEvent_tid;
-        char *token[64];
-
+        char *token[64] = { NULL };
 
         int count=0;
         int too_many_tokens = 0;
@@ -169,7 +168,6 @@ void parseBroadcastData(const char* info)
         }
         char* lsubdocName = NULL;
         int i = 0;
-
         if( (strncmp(process_name,token[i],sizeof(process_name) -1) == 0 )  && ( atoi(token[++i]) == IAM_MASTER ) )          
         {
 
@@ -223,16 +221,15 @@ void parseMasterData(const char* info)
           return ;
       }
 
-              if (info == NULL)
-        {
-            WbError(("Master data is NULL\n"));
-            return;
-        }
-
+      if (info == NULL)
+      {
+	      WbError(("Master data is NULL\n"));
+	      return;
+      }
         char str[512] = {0};
         memset(str,0,sizeof(str));
         snprintf(str,sizeof(str),"%s",info);
-      char *token[64];
+        char *token[64] = { NULL };
         int i=0, count=0;
         int too_many_tokens = 0;
         char* rest = str;
@@ -253,8 +250,6 @@ void parseMasterData(const char* info)
            WbError(("Invalid number of parameters passed\n"));
            return;
         }
-      
-
         int validResponse = 0;
         i = 0 ;
 
@@ -586,14 +581,12 @@ void parseSlaveData(const char* info)
         char *token[64];
         char *dataToQueue = NULL;
 
-
         int thread_retVal = 0;
-          int index=-1, count=0 ;
+        int index=-1, count=0 ;
         pthread_t tid_exec_slave;
-          while (index < MAX_MULTI_COMP_TOKENS - 1 &&
-               (token[++index] = strtok_r(rest, ",", &rest)) && count < 3 )
+        while ((token[++index] = strtok_r(rest, ",", &rest)) && count < 3 ) 
               count++;
-
+    
         index = 0 ; 
         // Checking if request belongs to right component
         if ( strcmp(process_name,token[index]) == 0 )
@@ -1220,7 +1213,12 @@ void* execute_request_slave(void *data)
           	lmultiCompRegData++;
     	}
 
-    	if ( lmultiCompRegData->executeBlobRequest )
+    	if ( j >= gNumOfMultiCompSubDoc )
+    	{
+        	WbError(("%s : subdoc '%s' not registered, ignoring request\n",__FUNCTION__,subdocInExec));
+        	sendBlobExecutionResult(subdocInExec, EXECUTION_FAILED, SUBDOC_NOT_SUPPORTED, "Subdoc not registered");
+    	}
+    	else if ( lmultiCompRegData->executeBlobRequest )
     	{
         	execReturnMultiCompSlave = lmultiCompRegData->executeBlobRequest((char*)data);
 
@@ -1324,6 +1322,31 @@ void* ExecuteMultiCompRequest_thread(void* arg)
                 }
                 pthread_mutex_unlock(&multiRegData_access);
 
+                if ( j >= gNumOfMultiCompSubDoc )
+                {
+                    WbError(("%s : subdoc '%s' not registered, ignoring request\n",__FUNCTION__,subdocInExec));
+                    sendBlobExecutionResult(subdocInExec, EXECUTION_FAILED, SUBDOC_NOT_SUPPORTED, "Subdoc not registered");
+                    if (data != NULL)
+                    {
+                        free(data);
+                        data = NULL;
+                    }
+                    pthread_mutex_unlock(&webconfig_exec);
+                    return NULL;
+                }
+
+                if ( lmultiCompRegData->executeBlobRequest == NULL )
+                {
+                    WbError(("%s : executeBlobRequest is NULL for subdoc '%s'\n",__FUNCTION__,subdocInExec));
+                    sendBlobExecutionResult(subdocInExec, EXECUTION_FAILED, NULL_BLOB_EXEC_POINTER, "Null Execution Pointer passed");
+                    if (data != NULL)
+                    {
+                        free(data);
+                        data = NULL;
+                    }
+                    pthread_mutex_unlock(&webconfig_exec);
+                    return NULL;
+                }
 
                 int timeout = getMultiCompTimeOut( subdocInExec );
 
