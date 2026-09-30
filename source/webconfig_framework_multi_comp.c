@@ -571,6 +571,12 @@ void parseSlaveData(const char* info)
 {
         WbInfo(("Entering %s\n",__FUNCTION__));
 
+        if (info == NULL)
+        {
+            WbError(("Slave data is NULL\n"));
+            return;
+        }
+
         int data_sz = 0 ;
 
         char* dataReceivedFromEvent = NULL ;
@@ -1220,7 +1226,11 @@ void* execute_request_slave(void *data)
           	lmultiCompRegData++;
     	}
 
-    	if ( lmultiCompRegData->executeBlobRequest )
+    	if ( j >= gNumOfMultiCompSubDoc )
+    	{
+        	WbError(("%s : subdoc '%s' not registered, ignoring request\n",__FUNCTION__,subdocInExec));
+    	}
+    	else if ( lmultiCompRegData->executeBlobRequest )
     	{
         	execReturnMultiCompSlave = lmultiCompRegData->executeBlobRequest((char*)data);
 
@@ -1323,6 +1333,18 @@ void* ExecuteMultiCompRequest_thread(void* arg)
                     lmultiCompRegData++;
                 }
                 pthread_mutex_unlock(&multiRegData_access);
+
+                if ( j >= gNumOfMultiCompSubDoc )
+                {
+                    WbError(("%s : subdoc '%s' not registered, ignoring request\n",__FUNCTION__,subdocInExec));
+                    if (data != NULL)
+                    {
+                        free(data);
+                        data = NULL;
+                    }
+                    pthread_mutex_unlock(&webconfig_exec);
+                    return NULL;
+                }
 
 
                 int timeout = getMultiCompTimeOut( subdocInExec );
