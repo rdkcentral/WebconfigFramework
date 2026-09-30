@@ -144,7 +144,7 @@ void parseBroadcastData(const char* info)
         memset(str,0,sizeof(str));
         snprintf(str,sizeof(str),"%s",info);
         pthread_t slaveEvent_tid;
-        char *token[64];
+        char *token[64] = { NULL };
 
 
         int count=0;
@@ -232,7 +232,7 @@ void parseMasterData(const char* info)
         char str[512] = {0};
         memset(str,0,sizeof(str));
         snprintf(str,sizeof(str),"%s",info);
-      char *token[64];
+        char *token[64] = { NULL };
         int i=0, count=0;
         int too_many_tokens = 0;
         char* rest = str;
@@ -252,6 +252,15 @@ void parseMasterData(const char* info)
         {
            WbError(("Invalid number of parameters passed\n"));
            return;
+        }
+
+        int response = atoi(token[2]);
+        if ((response == READY_TO_RECEIVE_DATA && count != 3) ||
+            (response == TIMEOUT_VALUE && count < 4) ||
+            ((response == EXECUTION_SUCCESSFULLY_COMPLETED || response == EXECUTION_FAILED) && count < 4))
+        {
+            WbError(("Invalid number of parameters passed for response\n"));
+            return;
         }
       
 
@@ -306,9 +315,10 @@ void parseMasterData(const char* info)
                       lMultiCompExecData->executionStatus = 1 ;
                       lMultiCompExecData->execResult = atoi((token[++i])) ;
 
-                      if ( token[++i] != NULL )
+                      if ( count > 4 )
                       {
-                          strncpy(lMultiCompExecData->execRetMsg,token[i],sizeof(lMultiCompExecData->execRetMsg)-1);
+                          strncpy(lMultiCompExecData->execRetMsg,token[4],sizeof(lMultiCompExecData->execRetMsg)-1);
+                          lMultiCompExecData->execRetMsg[sizeof(lMultiCompExecData->execRetMsg)-1] = '\0';
                       }
                    
                       pthread_cond_signal(&MultiCompCond);
@@ -322,9 +332,10 @@ void parseMasterData(const char* info)
 
                       lMultiCompExecData->executionStatus = 0 ;
                       lMultiCompExecData->execResult = atoi((token[++i])) ;
-                      if ( token[++i] != NULL )
+                      if ( count > 4 )
                       {
-                          strncpy(lMultiCompExecData->execRetMsg,token[i],sizeof(lMultiCompExecData->execRetMsg)-1);
+                          strncpy(lMultiCompExecData->execRetMsg,token[4],sizeof(lMultiCompExecData->execRetMsg)-1);
+                          lMultiCompExecData->execRetMsg[sizeof(lMultiCompExecData->execRetMsg)-1] = '\0';
                       }
                       pthread_cond_signal(&MultiCompCond);
 
@@ -571,6 +582,12 @@ void parseSlaveData(const char* info)
 {
         WbInfo(("Entering %s\n",__FUNCTION__));
 
+        if (info == NULL)
+        {
+            WbError(("Slave data is NULL\n"));
+            return;
+        }
+
         int data_sz = 0 ;
 
         char* dataReceivedFromEvent = NULL ;
@@ -583,18 +600,24 @@ void parseSlaveData(const char* info)
         }
 
         char* rest = dataReceivedFromEvent;
-        char *token[64];
+        char *token[64] = { NULL };
         char *dataToQueue = NULL;
 
 
         int thread_retVal = 0;
-          int index=-1, count=0 ;
+          int index=0, count=0 ;
         pthread_t tid_exec_slave;
-          while (index < MAX_MULTI_COMP_TOKENS - 1 &&
-               (token[++index] = strtok_r(rest, ",", &rest)) && count < 3 )
+          while (count < 4 &&
+               (token[count] = strtok_r(rest, ",", &rest)) != NULL)
               count++;
 
         index = 0 ; 
+        if (count < 2)
+        {
+            WbError(("Invalid number of parameters passed\n"));
+            goto EXIT;
+        }
+
         // Checking if request belongs to right component
         if ( strcmp(process_name,token[index]) == 0 )
         {
@@ -602,6 +625,11 @@ void parseSlaveData(const char* info)
 
               if ( atoi(token[index]) ==  BLOB_EXEC_REQUEST_TIMEOUT )
               {
+                  if (count < 3)
+                  {
+                      WbError(("Invalid number of parameters passed for timeout request\n"));
+                      goto EXIT;
+                  }
                   size_t timeout = getMultiCompTimeOut(token[++index]);
 
                   sendTimeoutToMaster(token[index],timeout);
@@ -609,6 +637,11 @@ void parseSlaveData(const char* info)
               }
               else if ( atoi(token[index]) ==  BLOB_EXEC_DATA )
               {
+                  if (count < 4)
+                  {
+                      WbError(("Invalid number of parameters passed for blob request\n"));
+                      goto EXIT;
+                  }
                 
                   index++;
 
@@ -658,6 +691,11 @@ void parseSlaveData(const char* info)
 
           	else if ( atoi(token[index]) ==  ROLLBACK_LAST_REQUEST )
                 {
+                    if (count < 3)
+                    {
+                        WbError(("Invalid number of parameters passed for rollback request\n"));
+                        goto EXIT;
+                    }
                   	rollbackLastExec(token[++index]);
                   	goto EXIT;
               	} 
@@ -1220,7 +1258,11 @@ void* execute_request_slave(void *data)
           	lmultiCompRegData++;
     	}
 
-    	if ( lmultiCompRegData->executeBlobRequest )
+    	if ( j >= gNumOfMultiCompSubDoc )
+    	{
+        	WbError(("%s : subdoc '%s' not registered, ignoring request\n",__FUNCTION__,subdocInExec));
+    	}
+    	else if ( lmultiCompRegData->executeBlobRequest )
     	{
         	execReturnMultiCompSlave = lmultiCompRegData->executeBlobRequest((char*)data);
 
@@ -1323,6 +1365,18 @@ void* ExecuteMultiCompRequest_thread(void* arg)
                     lmultiCompRegData++;
                 }
                 pthread_mutex_unlock(&multiRegData_access);
+
+                if ( j >= gNumOfMultiCompSubDoc )
+                {
+                    WbError(("%s : subdoc '%s' not registered, ignoring request\n",__FUNCTION__,subdocInExec));
+                    if (data != NULL)
+                    {
+                        free(data);
+                        data = NULL;
+                    }
+                    pthread_mutex_unlock(&webconfig_exec);
+                    return NULL;
+                }
 
 
                 int timeout = getMultiCompTimeOut( subdocInExec );
