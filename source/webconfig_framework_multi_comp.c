@@ -144,7 +144,7 @@ void parseBroadcastData(const char* info)
         memset(str,0,sizeof(str));
         snprintf(str,sizeof(str),"%s",info);
         pthread_t slaveEvent_tid;
-        char *token[64] = { NULL };
+        char *token[MAX_MULTI_COMP_TOKENS] = { NULL };
 
 
         int count=0;
@@ -1369,6 +1369,7 @@ void* ExecuteMultiCompRequest_thread(void* arg)
                 if ( j >= gNumOfMultiCompSubDoc )
                 {
                     WbError(("%s : subdoc '%s' not registered, ignoring request\n",__FUNCTION__,subdocInExec));
+                    sendBlobExecutionResult(subdocInExec, EXECUTION_FAILED, SUBDOC_NOT_SUPPORTED, "Subdoc not registered");
                     if (data != NULL)
                     {
                         free(data);
