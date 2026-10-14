@@ -20,6 +20,7 @@
 #include <fcntl.h>
 
 #ifdef WBCFG_MULTI_COMP_SUPPORT
+#define MAX_MULTI_COMP_TOKENS 64
 #include "webconfig_framework.h"
 #include "webconfig_bus_interface.h"
 #include "webconfig_logging.h"
@@ -133,25 +134,40 @@ void* event_register_slave(void* subdoc_name)
 // Function to parse the data received from broadcast event
 void parseBroadcastData(const char* info)
 {
+	if (info == NULL)
+	{
+		WbError(("Broadcast data is NULL\n"));
+		return;
+	}
+
         char str[512] = {0};
         memset(str,0,sizeof(str));
         snprintf(str,sizeof(str),"%s",info);
         pthread_t slaveEvent_tid;
-        char *token[64];
+        char *token[64] = { NULL };
 
-        int i= -1, count=0 ;
+        int count=0;
+        int too_many_tokens = 0;
 
         char* rest = str;
-        while ((token[++i] = strtok_r(rest, ",", &rest))) 
-              count++;
+        while (count < MAX_MULTI_COMP_TOKENS &&
+               (token[count] = strtok_r(rest, ",", &rest)) != NULL)
+        {
+            count++;
+        }
+        if (count == MAX_MULTI_COMP_TOKENS &&
+            strtok_r(rest, ",", &rest) != NULL)
+        {
+            too_many_tokens = 1;
+        }
 
-        if ( count != 3 )
+        if (too_many_tokens || count != 3)
         {
           WbError(("Invalid number of parameters passed\n"));
             return;
         }
         char* lsubdocName = NULL;
-        i = 0 ;
+        int i = 0;
         if( (strncmp(process_name,token[i],sizeof(process_name) -1) == 0 )  && ( atoi(token[++i]) == IAM_MASTER ) )          
         {
 
@@ -205,23 +221,35 @@ void parseMasterData(const char* info)
           return ;
       }
 
+      if (info == NULL)
+      {
+	      WbError(("Master data is NULL\n"));
+	      return;
+      }
         char str[512] = {0};
         memset(str,0,sizeof(str));
         snprintf(str,sizeof(str),"%s",info);
-
-        char *token[64];
-        int i=-1, count=0;
+        char *token[64] = { NULL };
+        int i=0, count=0;
+        int too_many_tokens = 0;
         char* rest = str;
 
-        while ((token[++i] = strtok_r(rest, ",", &rest))) 
-          count++;
+        while (count < MAX_MULTI_COMP_TOKENS &&
+               (token[count] = strtok_r(rest, ",", &rest)) != NULL)
+        {
+            count++;
+        }
+        if (count == MAX_MULTI_COMP_TOKENS &&
+            strtok_r(rest, ",", &rest) != NULL)
+        {
+            too_many_tokens = 1;
+        }
 
-        if ( count <= 2  )
+        if (too_many_tokens || count <= 2)
         {
            WbError(("Invalid number of parameters passed\n"));
            return;
         }
-      
         int validResponse = 0;
         i = 0 ;
 
@@ -1185,7 +1213,12 @@ void* execute_request_slave(void *data)
           	lmultiCompRegData++;
     	}
 
-    	if ( lmultiCompRegData->executeBlobRequest )
+    	if ( j >= gNumOfMultiCompSubDoc )
+    	{
+        	WbError(("%s : subdoc '%s' not registered, ignoring request\n",__FUNCTION__,subdocInExec));
+        	sendBlobExecutionResult(subdocInExec, EXECUTION_FAILED, SUBDOC_NOT_SUPPORTED, "Subdoc not registered");
+    	}
+    	else if ( lmultiCompRegData->executeBlobRequest )
     	{
         	execReturnMultiCompSlave = lmultiCompRegData->executeBlobRequest((char*)data);
 
@@ -1289,6 +1322,31 @@ void* ExecuteMultiCompRequest_thread(void* arg)
                 }
                 pthread_mutex_unlock(&multiRegData_access);
 
+                if ( j >= gNumOfMultiCompSubDoc )
+                {
+                    WbError(("%s : subdoc '%s' not registered, ignoring request\n",__FUNCTION__,subdocInExec));
+                    sendBlobExecutionResult(subdocInExec, EXECUTION_FAILED, SUBDOC_NOT_SUPPORTED, "Subdoc not registered");
+                    if (data != NULL)
+                    {
+                        free(data);
+                        data = NULL;
+                    }
+                    pthread_mutex_unlock(&webconfig_exec);
+                    return NULL;
+                }
+
+                if ( lmultiCompRegData->executeBlobRequest == NULL )
+                {
+                    WbError(("%s : executeBlobRequest is NULL for subdoc '%s'\n",__FUNCTION__,subdocInExec));
+                    sendBlobExecutionResult(subdocInExec, EXECUTION_FAILED, NULL_BLOB_EXEC_POINTER, "Null Execution Pointer passed");
+                    if (data != NULL)
+                    {
+                        free(data);
+                        data = NULL;
+                    }
+                    pthread_mutex_unlock(&webconfig_exec);
+                    return NULL;
+                }
 
                 int timeout = getMultiCompTimeOut( subdocInExec );
 
