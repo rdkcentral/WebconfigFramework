@@ -401,7 +401,7 @@ _multiCompSubDocReg
 	char multi_comp_subdoc[SUBDOC_NAME_SZ];
 	size_t (*calcTimeout) ();  
     	pErr (*executeBlobRequest) (void*); 
-	int (*rollbackFunc) (); 
+	int (*rollbackFunc) (void *);
 	void (*freeResources) ();
 
 }
