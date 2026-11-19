@@ -435,7 +435,7 @@ void rollbackLastExec(char* subdoc_name)
         	if ( strcmp(subdoc_name,lmultiCompRegData->multi_comp_subdoc )  == 0 )
           	{
 
-                	ret = lmultiCompRegData->rollbackFunc();
+                       ret = lmultiCompRegData->rollbackFunc(NULL);
                 	if ( ret != ROLLBACK_SUCCESS )
                  	{
                      		WbError(("rollback failed for %s, return value is %d\n",subdoc_name,ret));
